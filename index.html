@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Banking Portal</title>
+    <script src="https://unpkg.com/three@0.158.0/build/three.min.js"></script>
+    <script src="https://cdn.skypack.dev/@tensorflow/tfjs"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<style>
+    body {
+        font-family: 'Poppins', sans-serif;
+        overflow-x: hidden;
+    }
+    .canvas-bg {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: -1;
+    }
+    .glassmorphism {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .loading {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3498db;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+<body class="bg-gray-900 text-white">
+    <canvas class="canvas-bg" id="bg"></canvas>
+
+    <!-- Main Container -->
+    <div class="container mx-auto px-4 py-8">
+        <!-- Authentication Section -->
+        <div id="auth-section" class="flex min-h-screen items-center justify-center">
+            <div class="glassmorphism p-8 rounded-xl w-full max-w-md">
+                <div class="text-center mb-8">
+                    <h1 class="text-3xl font-bold mb-2">AI Banking Portal</h1>
+                    <p class="text-gray-300">Secure • Smart • Simple</p>
+                </div>
+                <div class="space-y-4">
+                    <input type="email" id="email" placeholder="Email" class="w-full p-3 rounded bg-gray-800 border border-gray-700">
+                    <input type="password" id="password" placeholder="Password" class="w-full p-3 rounded bg-gray-800 border border-gray-700">
+                    <button onclick="login()" class="w-full bg-blue-600 p-3 rounded font-semibold hover:bg-blue-700 transition">Login</button>
+                    <div class="flex justify-between text-sm">
+                        <button onclick="toggleBiometric()" class="text-blue-400 hover:text-blue-300"><i class="bi bi-fingerprint"></i> Biometric Login</button>
+                        <button onclick="toggleLanguage()" class="text-blue-400 hover:text-blue-300"><i class="bi bi-globe"></i> Language</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Section (Hidden by default) -->
+        <div id="dashboard-section" class="hidden">
+            <nav class="glassmorphism mb-8 p-4 rounded-lg flex justify-between items-center">
+                <h2 class="text-xl font-bold">Welcome Back, <span id="user-name">User</span></h2>
+                <div class="flex items-center space-x-4">
+                    <button onclick="toggleDarkMode()" class="p-2 rounded hover:bg-gray-700"><i class="bi bi-moon-fill"></i></button>
+                    <button onclick="startVoiceCommand()" class="p-2 rounded hover:bg-gray-700"><i class="bi bi-mic-fill"></i></button>
+                    <button onclick="logout()" class="p-2 rounded hover:bg-gray-700"><i class="bi bi-box-arrow-right"></i></button>
+                </div>
+            </nav>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Balance Card -->
+                <div class="glassmorphism p-6 rounded-xl">
+                    <h3 class="text-lg font-semibold mb-2">Total Balance</h3>
+                    <p class="text-3xl font-bold">₹1,234,567</p>
+                    <div class="mt-4 flex justify-between items-center">
+                        <span class="text-green-400">+2.5% <i class="bi bi-arrow-up"></i></span>
+                        <button onclick="showQRCode()" class="bg-blue-600 px-4 py-2 rounded">Pay/Receive</button>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="glassmorphism p-6 rounded-xl">
+                    <h3 class="text-lg font-semibold mb-4">Quick Actions</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <button onclick="showTransferModal()" class="p-3 bg-gray-800 rounded text-center hover:bg-gray-700">
+                            <i class="bi bi-send"></i>
+                            <span class="block mt-2">Transfer</span>
+                        </button>
+                        <button onclick="showBillPayment()" class="p-3 bg-gray-800 rounded text-center hover:bg-gray-700">
+                            <i class="bi bi-receipt"></i>
+                            <span class="block mt-2">Bill Pay</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- AI Insights -->
+                <div class="glassmorphism p-6 rounded-xl">
+                    <h3 class="text-lg font-semibold mb-2">AI Insights</h3>
+                    <div id="ai-chat" class="h-40 overflow-y-auto mb-4 bg-gray-800 rounded p-3">
+                        <!-- Chat messages will appear here -->
+                    </div>
+                    <div class="flex space-x-2">
+                        <input type="text" id="ai-input" placeholder="Ask about your finances..." class="flex-1 p-2 rounded bg-gray-800 border border-gray-700">
+                        <button onclick="sendToAI()" class="bg-blue-600 px-4 py-2 rounded"><i class="bi bi-send"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Transactions -->
+            <div class="glassmorphism mt-6 p-6 rounded-xl">
+                <h3 class="text-lg font-semibold mb-4">Recent Transactions</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="text-left">
+                                <th class="pb-4">Date</th>
+                                <th class="pb-4">Description</th>
+                                <th class="pb-4">Amount</th>
+                                <th class="pb-4">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactions-table">
+                            <!-- Transactions will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Three.js Background
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({
+            canvas: document.querySelector('#bg'),
+            alpha: true
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        const geometry = new THREE.TorusGeometry(10, 3, 16, 100);
+        const material = new THREE.MeshStandardMaterial({ color: 0x3498db });
+        const torus = new THREE.Mesh(geometry, material);
+        scene.add(torus);
+
+        const pointLight = new THREE.PointLight(0xffffff);
+        pointLight.position.set(5, 5, 5);
+        scene.add(pointLight);
+
+        camera.position.z = 30;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            torus.rotation.x += 0.01;
+            torus.rotation.y += 0.005;
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Banking Functions
+        let darkMode = false;
+        let currentLanguage = 'en';
+
+        function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            if (email && password) {
+                document.getElementById('auth-section').classList.add('hidden');
+                document.getElementById('dashboard-section').classList.remove('hidden');
+                loadTransactions();
+            }
+        }
+
+        function logout() {
+            document.getElementById('auth-section').classList.remove('hidden');
+            document.getElementById('dashboard-section').classList.add('hidden');
+        }
+
+        function toggleDarkMode() {
+            darkMode = !darkMode;
+            document.body.classList.toggle('bg-white');
+            document.body.classList.toggle('text-gray-900');
+        }
+
+        function toggleBiometric() {
+            if (navigator.credentials) {
+                // WebAuthn implementation would go here
+                alert('Biometric authentication initiated');
+            } else {
+                alert('Biometric authentication not supported');
+            }
+        }
+
+        function toggleLanguage() {
+            currentLanguage = currentLanguage === 'en' ? 'hi' : 'en';
+            alert(`Language changed to ${currentLanguage === 'en' ? 'English' : 'Hindi'}`);
+        }
+
+        function startVoiceCommand() {
+            if ('webkitSpeechRecognition' in window) {
+                const recognition = new webkitSpeechRecognition();
+                recognition.start();
+                recognition.onresult = (event) => {
+                    const command = event.results[0][0].transcript;
+                    processVoiceCommand(command);
+                };
+            } else {
+                alert('Voice recognition not supported');
+            }
+        }
+
+        function processVoiceCommand(command) {
+            const aiChat = document.getElementById('ai-chat');
+            aiChat.innerHTML += `<div class="mb-2">You: ${command}</div>`;
+            // Process command and generate response
+            aiChat.innerHTML += `<div class="mb-2 text-blue-400">AI: Processing your command: "${command}"</div>`;
+        }
+
+        function sendToAI() {
+            const input = document.getElementById('ai-input');
+            const aiChat = document.getElementById('ai-chat');
+            if (input.value) {
+                aiChat.innerHTML += `<div class="mb-2">You: ${input.value}</div>`;
+                // AI response simulation
+                aiChat.innerHTML += `<div class="mb-2 text-blue-400">AI: I'll help you analyze that.</div>`;
+                input.value = '';
+            }
+        }
+
+        function loadTransactions() {
+            const transactions = [
+                { date: '2023-11-01', description: 'Grocery Store', amount: '-₹2,500', status: 'Completed' },
+                { date: '2023-11-01', description: 'Salary Deposit', amount: '+₹75,000', status: 'Completed' },
+                { date: '2023-10-31', description: 'Electric Bill', amount: '-₹1,200', status: 'Pending' }
+            ];
+
+            const tableBody = document.getElementById('transactions-table');
+            tableBody.innerHTML = transactions.map(t => `
+                <tr class="border-t border-gray-700">
+                    <td class="py-3">${t.date}</td>
+                    <td class="py-3">${t.description}</td>
+                    <td class="py-3 ${t.amount.includes('+') ? 'text-green-400' : 'text-red-400'}">${t.amount}</td>
+                    <td class="py-3">
+                        <span class="px-2 py-1 rounded-full text-xs ${t.status === 'Completed' ? 'bg-green-800' : 'bg-yellow-800'}">
+                            ${t.status}
+                        </span>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Window resize handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
